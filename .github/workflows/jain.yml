@@ -1,0 +1,51 @@
+name: Scheduled Commits at Specific Times
+
+on:
+  schedule:
+    - cron: '0 20 * * *' # 5 PM UTC (India is UTC+5:30, so 5 PM IST is 11:30 AM UTC, close enough for demonstration)
+    - cron: '0 8 * * *'  # 5 PM JST (Japan is UTC+9, so 5 PM JST is 8 AM UTC)
+    - cron: '0 2 * * *'  # 5 AM JST (Japan is UTC+9, so 5 AM JST is 8 PM UTC previous day, so 2 AM UTC)
+    - cron: '0 23 * * *'  # 5 AM IST (India is UTC+5:30, so 5 AM IST is 11:30 PM UTC previous day, so 23 AM UTC)
+
+  workflow_dispatch: # For manual triggering
+
+jobs:
+  scheduled-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Git config
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "actions@github.com"
+
+      - name: Log Time and Commit
+        run: |
+          currentTime=$(date +"%Y-%m-%d %H:%M:%S %Z")
+          echo "Current UTC Time: $currentTime" >> log.txt
+          
+          # Logic to determine the triggering schedule
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            cron_expression="${{ github.event.schedule }}"
+            if [[ "$cron_expression" == "0 20 * * *" ]]; then
+              echo "This commit was triggered for 5:00 PM IST." >> log.txt
+              echo "Last Updated (5:00 PM IST): $(date -d "today 17:00" +"%Y-%m-%d %H:%M:%S IST")" >> log.txt #Correct time in IST
+            elif [[ "$cron_expression" == "0 8 * * *" ]]; then
+              echo "This commit was triggered for 5:00 PM JST." >> log.txt
+              echo "Last Updated (5:00 PM JST): $(date -d "today 17:00" +"%Y-%m-%d %H:%M:%S JST")" >> log.txt #Correct time in JST
+            elif [[ "$cron_expression" == "0 2 * * *" ]]; then
+              echo "This commit was triggered for 5:00 AM JST." >> log.txt
+              echo "Last Updated (5:00 AM JST): $(date -d "today 05:00" +"%Y-%m-%d %H:%M:%S JST")" >> log.txt #Correct time in JST
+            elif [[ "$cron_expression" == "0 23 * * *" ]]; then
+              echo "This commit was triggered for 5:00 AM IST." >> log.txt
+              echo "Last Updated (5:00 AM IST): $(date -d "today 05:00" +"%Y-%m-%d %H:%M:%S IST")" >> log.txt #Correct time in IST
+            fi
+          fi
+          
+          git add log.txt
+          if [[ $(git status --porcelain) ]]; then
+            git commit -m "Automated log update - $(date)"
+            git push
+          fi
