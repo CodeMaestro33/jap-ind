@@ -2,16 +2,16 @@ name: Scheduled Commits at Specific Times
 
 on:
   schedule:
-    - cron: '0 20 * * *' # 5 PM UTC (India is UTC+5:30, so 5 PM IST is 11:30 AM UTC, close enough for demonstration)
-    - cron: '0 8 * * *'  # 5 PM JST (Japan is UTC+9, so 5 PM JST is 8 AM UTC)
-    - cron: '0 2 * * *'  # 5 AM JST (Japan is UTC+9, so 5 AM JST is 8 PM UTC previous day, so 2 AM UTC)
-    - cron: '0 23 * * *'  # 5 AM IST (India is UTC+5:30, so 5 AM IST is 11:30 PM UTC previous day, so 23 AM UTC)
-
+    - cron: '0 20 * * *' # 8:00 PM UTC
+    - cron: '0 8 * * *'  # 8:00 AM UTC
+    - cron: '0 2 * * *'  # 2:00 AM UTC
+    - cron: '0 23 * * *' # 11:00 PM UTC
   workflow_dispatch: # For manual triggering
 
 jobs:
   scheduled-commits:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -23,28 +23,40 @@ jobs:
 
       - name: Log Time and Commit
         run: |
-          currentTime=$(date +"%Y-%m-%d %H:%M:%S %Z")
-          echo "Current UTC Time: $currentTime" >> log.txt
+          # Define the log file
+          log_file="log.txt"
           
-          # Logic to determine the triggering schedule
+          # Record the current UTC time
+          current_time=$(date +"%Y-%m-%d %H:%M:%S %Z")
+          echo "Current UTC Time: $current_time" >> $log_file
+          
+          # Determine which schedule triggered the workflow
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            cron_expression="${{ github.event.schedule }}"
-            if [[ "$cron_expression" == "0 20 * * *" ]]; then
-              echo "This commit was triggered for 5:00 PM IST." >> log.txt
-              echo "Last Updated (5:00 PM IST): $(date -d "today 17:00" +"%Y-%m-%d %H:%M:%S IST")" >> log.txt #Correct time in IST
-            elif [[ "$cron_expression" == "0 8 * * *" ]]; then
-              echo "This commit was triggered for 5:00 PM JST." >> log.txt
-              echo "Last Updated (5:00 PM JST): $(date -d "today 17:00" +"%Y-%m-%d %H:%M:%S JST")" >> log.txt #Correct time in JST
-            elif [[ "$cron_expression" == "0 2 * * *" ]]; then
-              echo "This commit was triggered for 5:00 AM JST." >> log.txt
-              echo "Last Updated (5:00 AM JST): $(date -d "today 05:00" +"%Y-%m-%d %H:%M:%S JST")" >> log.txt #Correct time in JST
-            elif [[ "$cron_expression" == "0 23 * * *" ]]; then
-              echo "This commit was triggered for 5:00 AM IST." >> log.txt
-              echo "Last Updated (5:00 AM IST): $(date -d "today 05:00" +"%Y-%m-%d %H:%M:%S IST")" >> log.txt #Correct time in IST
-            fi
+            case "${{ github.event.schedule }}" in
+              '0 20 * * *')
+                echo "This commit was triggered for 8:00 PM UTC (5:30 AM IST)." >> $log_file
+                ;;
+              '0 8 * * *')
+                echo "This commit was triggered for 8:00 AM UTC (1:30 PM IST)." >> $log_file
+                ;;
+              '0 2 * * *')
+                echo "This commit was triggered for 2:00 AM UTC (7:30 AM IST)." >> $log_file
+                ;;
+              '0 23 * * *')
+                echo "This commit was triggered for 11:00 PM UTC (4:30 AM IST)." >> $log_file
+                ;;
+              *)
+                echo "Unknown schedule triggered this commit." >> $log_file
+                ;;
+            esac
+          else
+            echo "Triggered manually or by another event." >> $log_file
           fi
           
-          git add log.txt
+          # Add the log file to the Git repository
+          git add $log_file
+          
+          # Commit and push if there are changes
           if [[ $(git status --porcelain) ]]; then
             git commit -m "Automated log update - $(date)"
             git push
